@@ -1,0 +1,12 @@
+target C {
+    build: "../scripts/build_xmos_unix.sh",
+    threading: false,
+}
+main reactor {
+    timer t(0, 1 msec)
+    reaction(t) {=
+        instant_t now_phy = lf_time_physical();
+        instant_t now_log = lf_time_logical();
+        printf("log=%lli phy=%lli Hello world\n", now_log, now_phy);
+    =}
+}
