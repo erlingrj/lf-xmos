@@ -55,6 +55,10 @@ typedef _interval_t interval_t;
  */
 typedef _microstep_t microstep_t;
 
+//FIXME: Why this additional indirection?
+typedef _lf_cond_t lf_cond_t;
+typedef _lf_thread_t lf_thread_t;
+
 /**
  * Enter a critical section where logical time and the event queue are guaranteed
  * to not change unless they are changed within the critical section.

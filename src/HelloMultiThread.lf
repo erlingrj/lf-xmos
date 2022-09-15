@@ -1,0 +1,22 @@
+target C {
+    build: "../scripts/build_xmos_unix.sh",
+    workers: 2
+}
+
+reactor R1(id:int(0)) {
+    input in:void
+    reaction(in) {=
+        printf("Hello from t%u\n", self->id);
+    =}
+}
+
+main reactor {
+    timer t(0, 1 msec)
+    r1 = new R1(id=1)
+    r2 = new R1(id=2)
+
+    reaction(t) -> r1.in, r2.in {=
+        lf_set(r1.in, void);
+        lf_set(r2.in, void);
+    =}
+}

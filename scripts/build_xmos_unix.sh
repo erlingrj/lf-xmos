@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 echo Running build_xmos_unix.sh
 
+# Exit on first error
+set -e
+
 # Project root is one up from the bin directory.
 PROJECT_ROOT=$LF_BIN_DIRECTORY/..
-
+# FIXME: How do we get the name of the LF program?
+APP_NAME=multithread
 # Copy platform into /core
 cp $PROJECT_ROOT/platform/lf_xmos_support.c $LF_SOURCE_GEN_DIRECTORY/core/platform/
 cp $PROJECT_ROOT/platform/lf_xmos_support.h $LF_SOURCE_GEN_DIRECTORY/core/platform/
+cp $PROJECT_ROOT/platform/swlock.h $LF_SOURCE_GEN_DIRECTORY/core/platform/
+cp $PROJECT_ROOT/platform/swlock.c $LF_SOURCE_GEN_DIRECTORY/core/platform/
+cp $PROJECT_ROOT/platform/swlock_asm.S $LF_SOURCE_GEN_DIRECTORY/core/platform/
 cp $PROJECT_ROOT/platform/platform.h $LF_SOURCE_GEN_DIRECTORY/core/
 cp $PROJECT_ROOT/platform/reactor.c $LF_SOURCE_GEN_DIRECTORY/core/
 cp $PROJECT_ROOT/platform/reactor_common.c $LF_SOURCE_GEN_DIRECTORY/core/
@@ -15,6 +22,9 @@ cp $PROJECT_ROOT/platform/reactor_common.c $LF_SOURCE_GEN_DIRECTORY/core/
 # TODO: Why are there two generated core dirs
 cp $PROJECT_ROOT/platform/lf_xmos_support.c $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
 cp $PROJECT_ROOT/platform/lf_xmos_support.h $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
+cp $PROJECT_ROOT/platform/swlock.h $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
+cp $PROJECT_ROOT/platform/swlock.c $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
+cp $PROJECT_ROOT/platform/swlock_asm.S $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
 cp $PROJECT_ROOT/platform/platform.h $LF_SOURCE_GEN_DIRECTORY/include/core/
 cp $PROJECT_ROOT/platform/reactor.c $LF_SOURCE_GEN_DIRECTORY/include/core/
 cp $PROJECT_ROOT/platform/reactor_common.c $LF_SOURCE_GEN_DIRECTORY/include/core/
@@ -22,7 +32,7 @@ cp $PROJECT_ROOT/platform/reactor_common.c $LF_SOURCE_GEN_DIRECTORY/include/core
 # Create CMake file
 printf '
 cmake_minimum_required(VERSION 3.24)
-project(HelloWorld LANGUAGES C)
+project(%s LANGUAGES C)
 ## Specify your application sources and includes
 if(DEFINED XMOS_TOOLS_PATH)
     set(CMAKE_C_COMPILER "${XMOS_TOOLS_PATH}/xcc")
@@ -45,20 +55,13 @@ endif()
 
 add_subdirectory(lib)
 
-
+file(GLOB LF_GEN_SRCS *.c )
 
 set(APP_SRCS
-   HelloWorld.c
+   ${LF_GEN_SRCS}
    core/platform/lf_xmos_support.c
-   # core/mixed_radix.c
-   # core/reactor_common.c
-   # core/reactor.c
-   # core/tag.c
-   # core/trace.c
-   # core/utils/pqueue.c
-   # core/utils/semaphore.c
-   # core/utils/util.c
-   # core/utils/util.c
+   core/platform/swlock.c
+   core/platform/swlock_asm.S
 )
 
 set(APP_INCLUDES
@@ -97,9 +100,10 @@ install(
     TARGETS my_app
     RUNTIME DESTINATION %s
 )
-' $LF_BIN_DIRECTORY >  $LF_SOURCE_GEN_DIRECTORY/CMakeLists.txt
+' $APP_NAME $LF_BIN_DIRECTORY >  $LF_SOURCE_GEN_DIRECTORY/CMakeLists.txt
 
 cd $LF_SOURCE_GEN_DIRECTORY
 
 cmake -B build && cd build
 make install
+mv $LF_BIN_DIRECTORY/my_app.xe $LF_BIN_DIRECTORY/$APP_NAME.xe

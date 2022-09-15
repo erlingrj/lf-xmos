@@ -3,15 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// FIXME: Why do we need this/
-typedef struct xmos_int {
-    uint8_t int_num;
-    uint8_t priority;
-    struct nrf_int* next;
-} nrf_int;
-
-typedef struct xmos_int _lf_mutex_t;
-
+#include "swlock.h" // XMOS lib for sw locks (needed for the cond timed wait I think)
+#include <xcore/port.h> //FIXME: Hack to get resource_t definition. WHy doesnt xcore/thread.h work?
 typedef int64_t _instant_t;
 
 /**
@@ -39,6 +32,7 @@ typedef uint32_t _microstep_t;
  * for a total of 79. One more allows for a null terminator.
  */
 #define LF_TIME_BUFFER_LENGTH 80
+#define LF_TIMEOUT -2
 
 #include <inttypes.h>  // Needed to define PRId64 and PRIu32
 #define PRINTF_TIME "%" PRId64
@@ -50,3 +44,7 @@ typedef uint32_t _microstep_t;
 #define PRINTF_TAG "(%" PRId64 ", %" PRIu32 ")"
 // The underlying physical clock for Linux
 #define _LF_CLOCK CLOCK_MONOTONIC
+
+typedef int _lf_mutex_t;
+typedef swlock_t _lf_cond_t;            // Type to hold handle to a condition variable
+typedef resource_t _lf_thread_t;        // Type to hold handle to a thread
