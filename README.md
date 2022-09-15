@@ -19,7 +19,10 @@ lfc 0.3.1-SNAPSHOT
 
 ## Brief intro
 XCore is a commercial PRET machine by XMOS. It delivers predictable timing with hardware multithreading. 
-This intial stab at a port currently only uses a single logical core to run a Lingua Franca program in bare-metal mode. Future work is to port the multi-threaded C runtime to use. This has only been tested using the XCore cycle accurate simulator "xsim"
+I have implemented both the single-threaded and the multi-threaded API here.
+Still some unresolved issues relating to appropriate stack-sizes and how to deal with Physical actions.
+
+This has only been tested using the XCore cycle accurate simulator "xsim"
 
 
 ## Quick start

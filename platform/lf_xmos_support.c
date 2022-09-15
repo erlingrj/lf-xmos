@@ -17,6 +17,7 @@ static int32_t time_hi = 0;
 static uint32_t last_time = 0;
 
 // Thread stack
+// FIXME: How big should it be?
 #define N_WORKERS 4
 #define STACK_WORDS_PER_THREAD 256
 #define STACK_BYTES_PER_WORD 4
@@ -43,6 +44,7 @@ static int get_available_thread() {
 
 static void return_thread(thread_info_t *tinfo) {
     xassert(tinfo);
+    //FIXME: Malloc+Free might cause issues?
     free(tinfo->stack_base_ptr);
     tinfo->running = false;
 }
@@ -75,6 +77,7 @@ int lf_thread_create(lf_thread_t* thread, void *(*lf_thread) (void *), void* arg
     thread_info_t * tinfo = &thread_info[idx];
 
     // FIXME: What is appropriate stack size? Is there a safe and guaranteed way to do this?
+    //  Should maybe have a statically allocated stack area? Or take stack requirements as arg?
     tinfo->stack_base_ptr = malloc(STACK_WORDS_PER_THREAD*STACK_BYTES_PER_WORD);
     void *stack_ptr = stack_base(tinfo->stack_base_ptr,STACK_WORDS_PER_THREAD);
 
@@ -199,6 +202,8 @@ int lf_clock_gettime(instant_t* t) {
     return 0;
 }
 
+// FIXME: We should probably also wait for a signal from lf_notify event
+//  however. Is that API used in threaded impl also? 
 int lf_sleep(interval_t sleep_duration) {
     uint64_t sleep_xmos_ticks = sleep_duration/10;
     
@@ -230,7 +235,7 @@ int lf_critical_section_exit() {
     return 0;
 }
 
-
+//FIXME: This is how physical actions can enter the LF system from external threads
 int lf_notify_of_event() {
     return 0;
 }
