@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "swlock.h" // XMOS lib for sw locks (needed for the cond timed wait I think)
 #include <xcore/port.h> //FIXME: Hack to get resource_t definition. WHy doesnt xcore/thread.h work?
 typedef int64_t _instant_t;
 
@@ -45,6 +44,17 @@ typedef uint32_t _microstep_t;
 // The underlying physical clock for Linux
 #define _LF_CLOCK CLOCK_MONOTONIC
 
-typedef int _lf_mutex_t;
-typedef swlock_t _lf_cond_t;            // Type to hold handle to a condition variable
+// FIXME: Where do I get this info?
+#define N_WORKERS 4
+
+typedef resource_t _lf_mutex_t;
 typedef resource_t _lf_thread_t;        // Type to hold handle to a thread
+
+typedef struct {
+    bool signal;
+    bool waiting;
+} cond_elem_t;
+
+typedef struct {
+    cond_elem_t waiter[N_WORKERS];
+} _lf_cond_t;            // Type to hold handle to a condition variable

@@ -147,7 +147,26 @@ extern int lf_cond_wait(lf_cond_t* cond, lf_mutex_t* mutex);
  *  number otherwise.
  */
 extern int lf_cond_timedwait(lf_cond_t* cond, lf_mutex_t* mutex, instant_t absolute_time_ns);
+/**
+ * Initialize a mutex.
+ * 
+ * @return 0 on success, platform-specific error number otherwise.
+ */
+extern int lf_mutex_init(lf_mutex_t* mutex);
 
+/**
+ * Lock a mutex.
+ * 
+ * @return 0 on success, platform-specific error number otherwise.
+ */
+extern int lf_mutex_lock(lf_mutex_t* mutex);
+
+/** 
+ * Unlock a mutex.
+ * 
+ * @return 0 on success, platform-specific error number otherwise.
+ */
+extern int lf_mutex_unlock(lf_mutex_t* mutex);
 /*
  * Atomically increment the variable that ptr points to by the given value, and return the original value of the variable.
  * @param ptr A pointer to a variable. The value of this variable will be replaced with the result of the operation.

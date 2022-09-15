@@ -7,9 +7,9 @@
 #include <platform.h>
 #include <xcore/hwtimer.h>
 #include <xcore/thread.h>
-#include <xcore/interrupt.h>
 #include <xcore/assert.h>
-#include "swlock.h"
+#include <xcore/lock.h>
+#include <xcore/interrupt.h>
 
 // HW timer 
 static hwtimer_t lf_timer;
@@ -18,7 +18,6 @@ static uint32_t last_time = 0;
 
 // Thread stack
 // FIXME: How big should it be?
-#define N_WORKERS 4
 #define STACK_WORDS_PER_THREAD 256
 #define STACK_BYTES_PER_WORD 4
 
@@ -42,6 +41,15 @@ static int get_available_thread() {
     return -1;
 }
 
+static cond_elem_t* get_available_cond(lf_cond_t *cond) {
+    for (int i = 0; i<N_WORKERS; i++) {
+        if (!cond->waiter[i].waiting) {
+            return &cond->waiter[i];
+        }
+    }
+    return -1;
+}
+
 static void return_thread(thread_info_t *tinfo) {
     xassert(tinfo);
     //FIXME: Malloc+Free might cause issues?
@@ -50,7 +58,6 @@ static void return_thread(thread_info_t *tinfo) {
 }
 
 // Starting point for all threads
-
 typedef struct {
     lf_function_t func;
     void * args;
@@ -60,6 +67,7 @@ void thread_function(void * args) {
     function_and_arg_t *func_and_arg = (function_and_arg_t *) args;
     func_and_arg->func(func_and_arg->args);
 }
+
 
 // FIXME: Return the number specified by the user
 int lf_available_cores() {
@@ -119,10 +127,13 @@ int lf_thread_join(lf_thread_t thread, void** thread_return) {
  * 
  * @return 0 on success, platform-specific error number otherwise.
  */
-// FIXME: Can we use the SW Locks instead of CondVars here?
 int lf_cond_init(lf_cond_t* cond) {
     xassert(cond);
-    swlock_init(cond);
+    
+    for (int i = 0; i<N_WORKERS; i++) {
+        cond->waiter[i].signal = false;
+        cond->waiter[i].waiting = false;
+    }
     return 0;
 }
 
@@ -133,7 +144,13 @@ int lf_cond_init(lf_cond_t* cond) {
  */
 int lf_cond_broadcast(lf_cond_t* cond) {
     xassert(cond);
-    swlock_release(cond);
+    for (int i = 0; i<N_WORKERS; i++) {
+        cond_elem_t *waiter = &cond->waiter[i];
+        if (waiter->waiting) {
+            waiter->signal = true;
+        }
+    }
+
     return 0;
 }
 
@@ -144,7 +161,15 @@ int lf_cond_broadcast(lf_cond_t* cond) {
  */
 int lf_cond_signal(lf_cond_t* cond) {
     xassert(cond);
-    swlock_release(cond);
+    
+    for (int i = 0; i<N_WORKERS; i++) {
+        cond_elem_t *waiter = &cond->waiter[i];
+        if (waiter->waiting) {
+            waiter->signal = true;
+            return 0;
+        }
+    }
+    
     return 0;
 }
 /** 
@@ -154,8 +179,22 @@ int lf_cond_signal(lf_cond_t* cond) {
  * @return 0 on success, platform-specific error number otherwise.
  */
 int lf_cond_wait(lf_cond_t* cond, lf_mutex_t* mutex) {
-    xassert(cond);
-    swlock_acquire(cond);
+    xassert(cond && mutex);
+
+    // Find available waiting spot
+    cond_elem_t *waiter = get_available_cond(cond);
+    xassert(waiter != NULL);
+    waiter->waiting = true;
+    lf_mutex_unlock(mutex);
+    // Wait for signal
+    while(!waiter->signal) {}
+
+    lf_mutex_lock(mutex);
+    // FIXME: Update ConVar inside critical section?
+    // Free CondVar
+    waiter->signal = false;
+    waiter->waiting = false;
+
     return 0;
 }
 
@@ -168,19 +207,69 @@ int lf_cond_wait(lf_cond_t* cond, lf_mutex_t* mutex) {
  *  number otherwise.
  */
 int lf_cond_timedwait(lf_cond_t* cond, lf_mutex_t* mutex, instant_t absolute_time_ns) {
-    xassert(cond);
+    xassert(cond && mutex);
+    
+    // Find available waiter spot
+    cond_elem_t *waiter = get_available_cond(cond);
+    xassert(waiter != NULL);
+    waiter->waiting = true;
+    lf_mutex_unlock(mutex);
+    
     instant_t now;
-    int lock_acquired;
     do {
-        lock_acquired = swlock_try_acquire(cond);
         lf_clock_gettime(&now);
-    } while (lock_acquired == SWLOCK_NOT_ACQUIRED && now < absolute_time_ns);
+    } while ((!waiter->signal) && (now < absolute_time_ns));
 
-    if (lock_acquired == SWLOCK_NOT_ACQUIRED) {
-        return LF_TIMEOUT;
-    } else {
+
+    // FIXME: Is this correct? Should we acquire the mutex?
+    lf_mutex_lock(mutex);
+    // FIXME: Update condVar in critical section?
+    waiter->waiting = false;
+    waiter->signal = false;
+    if (waiter->signal) {
         return 0;
+    } else {
+        return LF_TIMEOUT;
     }
+}
+
+/**
+ * Initialize a mutex.
+ * 
+ * @return 0 on success, platform-specific error number otherwise.
+ */
+ 
+int lf_mutex_init(lf_mutex_t* mutex) {
+    xassert(mutex);
+    lock_t lock = lock_alloc();
+    if(lock) {
+        (*mutex) = lock;
+        return 0;   
+    } else {
+        return -1;
+    }
+}
+
+/**
+ * Lock a mutex.
+ * 
+ * @return 0 on success, platform-specific error number otherwise.
+ */
+int lf_mutex_lock(lf_mutex_t* mutex) {
+    xassert(mutex);
+    lock_acquire(*mutex);
+    return 0;
+}
+
+/** 
+ * Unlock a mutex.
+ * 
+ * @return 0 on success, platform-specific error number otherwise.
+ */
+int lf_mutex_unlock(lf_mutex_t* mutex) {
+    xassert(mutex);
+    lock_release(*mutex);
+    return 0;
 }
 
 void lf_initialize_clock(void) {

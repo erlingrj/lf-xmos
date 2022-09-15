@@ -11,9 +11,6 @@ APP_NAME=multithread
 # Copy platform into /core
 cp $PROJECT_ROOT/platform/lf_xmos_support.c $LF_SOURCE_GEN_DIRECTORY/core/platform/
 cp $PROJECT_ROOT/platform/lf_xmos_support.h $LF_SOURCE_GEN_DIRECTORY/core/platform/
-cp $PROJECT_ROOT/platform/swlock.h $LF_SOURCE_GEN_DIRECTORY/core/platform/
-cp $PROJECT_ROOT/platform/swlock.c $LF_SOURCE_GEN_DIRECTORY/core/platform/
-cp $PROJECT_ROOT/platform/swlock_asm.S $LF_SOURCE_GEN_DIRECTORY/core/platform/
 cp $PROJECT_ROOT/platform/platform.h $LF_SOURCE_GEN_DIRECTORY/core/
 cp $PROJECT_ROOT/platform/reactor.c $LF_SOURCE_GEN_DIRECTORY/core/
 cp $PROJECT_ROOT/platform/reactor_common.c $LF_SOURCE_GEN_DIRECTORY/core/
@@ -22,9 +19,6 @@ cp $PROJECT_ROOT/platform/reactor_common.c $LF_SOURCE_GEN_DIRECTORY/core/
 # TODO: Why are there two generated core dirs
 cp $PROJECT_ROOT/platform/lf_xmos_support.c $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
 cp $PROJECT_ROOT/platform/lf_xmos_support.h $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
-cp $PROJECT_ROOT/platform/swlock.h $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
-cp $PROJECT_ROOT/platform/swlock.c $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
-cp $PROJECT_ROOT/platform/swlock_asm.S $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
 cp $PROJECT_ROOT/platform/platform.h $LF_SOURCE_GEN_DIRECTORY/include/core/
 cp $PROJECT_ROOT/platform/reactor.c $LF_SOURCE_GEN_DIRECTORY/include/core/
 cp $PROJECT_ROOT/platform/reactor_common.c $LF_SOURCE_GEN_DIRECTORY/include/core/
