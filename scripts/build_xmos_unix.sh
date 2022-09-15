@@ -8,20 +8,29 @@ set -e
 PROJECT_ROOT=$LF_BIN_DIRECTORY/..
 # FIXME: How do we get the name of the LF program?
 APP_NAME=multithread
+
+# FIXME: This is a hack to rename all #include "platform.h" int #include "lf_platform.h"
+for f in $(find $LF_SOURCE_GEN_DIRECTORY -type f -print)
+do
+    sed -i 's/"platform.h"/"lf_platform.h"/g' $f
+done
+
 # Copy platform into /core
 cp $PROJECT_ROOT/platform/lf_xmos_support.c $LF_SOURCE_GEN_DIRECTORY/core/platform/
 cp $PROJECT_ROOT/platform/lf_xmos_support.h $LF_SOURCE_GEN_DIRECTORY/core/platform/
-cp $PROJECT_ROOT/platform/platform.h $LF_SOURCE_GEN_DIRECTORY/core/
+cp $PROJECT_ROOT/platform/lf_platform.h $LF_SOURCE_GEN_DIRECTORY/core/
 cp $PROJECT_ROOT/platform/reactor.c $LF_SOURCE_GEN_DIRECTORY/core/
 cp $PROJECT_ROOT/platform/reactor_common.c $LF_SOURCE_GEN_DIRECTORY/core/
+rm $LF_SOURCE_GEN_DIRECTORY/core/platform.h
 
 # Copy platform into /include/core
 # TODO: Why are there two generated core dirs
 cp $PROJECT_ROOT/platform/lf_xmos_support.c $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
 cp $PROJECT_ROOT/platform/lf_xmos_support.h $LF_SOURCE_GEN_DIRECTORY/include/core/platform/
-cp $PROJECT_ROOT/platform/platform.h $LF_SOURCE_GEN_DIRECTORY/include/core/
+cp $PROJECT_ROOT/platform/lf_platform.h $LF_SOURCE_GEN_DIRECTORY/include/core/
 cp $PROJECT_ROOT/platform/reactor.c $LF_SOURCE_GEN_DIRECTORY/include/core/
 cp $PROJECT_ROOT/platform/reactor_common.c $LF_SOURCE_GEN_DIRECTORY/include/core/
+rm $LF_SOURCE_GEN_DIRECTORY/include/core/platform.h
 
 # Create CMake file
 printf '
@@ -54,8 +63,6 @@ file(GLOB LF_GEN_SRCS *.c )
 set(APP_SRCS
    ${LF_GEN_SRCS}
    core/platform/lf_xmos_support.c
-   core/platform/swlock.c
-   core/platform/swlock_asm.S
 )
 
 set(APP_INCLUDES
