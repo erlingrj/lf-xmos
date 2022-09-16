@@ -35,7 +35,17 @@ void test_mutex() {
     }
 }
 
+void test_recursive_mutex() {
+    lf_mutex_t m;
+    lf_mutex_init(&m);
+    lf_mutex_lock(&m);
+    lf_mutex_lock(&m);
+    lf_mutex_unlock(&m);
+    lf_mutex_unlock(&m);
+}
+
 int main() {
     lf_initialize_clock();
     test_mutex();
+    test_recursive_mutex();
 }

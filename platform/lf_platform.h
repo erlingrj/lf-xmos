@@ -26,18 +26,60 @@ THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /**
  * Platform API support for the C target of Lingua Franca.
- * This file is a variant for the C target for nRF52x + Buckler,
- * based on the generic platform.h in LF.
- *
- * @author{Abhi Gundrala <gundrala@berkeley.edu>}
+ * This file detects the platform on which the C compiler is being run
+ * (e.g. Windows, Linux, Mac) and conditionally includes platform-specific
+ * files that define core datatypes and function signatures for Lingua Franca.
+ * For example, the type instant_t represents a time value (long long on
+ * most of the platforms). The conditionally included files define a type
+ * _instant_t, and this file defines the type instant_t to be whatever
+ * the included defines _instant_t to be. All platform-independent code
+ * in Lingua Franca, therefore, should use the type instant_t for time
+ * values.
+ *  
+ * @author{Soroush Bateni <soroush@utdallas.edu>}
  */
 
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#include "platform/lf_xmos_support.h"
+#if defined(ARDUINO)
+    #include "platform/lf_arduino_support.h"
+#elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+   // Windows platforms
+   #include "platform/lf_windows_support.h"
+#elif __APPLE__
+    // Apple platforms
+    #include "platform/lf_macos_support.h"
+#elif __linux__
+    // Linux
+    #include "platform/lf_linux_support.h"
+#elif __unix__ // all unices not caught above
+    // Unix
+    #include "platform/lf_POSIX_threads_support.h"
+#elif defined(_POSIX_VERSION)
+    // POSIX
+    #include "platform/lf_POSIX_threads_support.h"
+#elif defined(__riscv) || defined(__riscv__) 
+    // RISC-V (see https://github.com/riscv/riscv-toolchain-conventions)
+    #error "RISC-V not supported"
+#elif defined(__xmos__)
+    // XMOS MCU
+    #include "platform/lf_xmos_support.h"
+#else
+#error "Platform not supported"
+#endif
 
+#ifdef NUMBER_OF_WORKERS
+// All platforms require some form of mutex support for physical actions.
+// Single global mutex.
 typedef _lf_mutex_t lf_mutex_t;          // Type to hold handle to a mutex
+extern lf_mutex_t mutex;
+
+#define LF_TIMEOUT _LF_TIMEOUT
+
+typedef _lf_cond_t lf_cond_t;            // Type to hold handle to a condition variable
+typedef _lf_thread_t lf_thread_t;        // Type to hold handle to a thread
+#endif
 
 /**
  * Time instant. Both physical and logical times are represented
@@ -54,10 +96,6 @@ typedef _interval_t interval_t;
  * Microstep instant.
  */
 typedef _microstep_t microstep_t;
-
-//FIXME: Why this additional indirection?
-typedef _lf_cond_t lf_cond_t;
-typedef _lf_thread_t lf_thread_t;
 
 /**
  * Enter a critical section where logical time and the event queue are guaranteed
@@ -84,6 +122,8 @@ extern int lf_critical_section_exit();
  */
 extern int lf_notify_of_event();
 
+// For platforms with threading support, the following functions
+// abstract the API so that the LF runtime remains portable.
 #ifdef NUMBER_OF_WORKERS
 
 /**
@@ -108,6 +148,28 @@ extern int lf_thread_create(lf_thread_t* thread, void *(*lf_thread) (void *), vo
  * @return 0 on success, platform-specific error number otherwise.
  */
 extern int lf_thread_join(lf_thread_t thread, void** thread_return);
+
+/**
+ * Initialize a mutex.
+ * 
+ * @return 0 on success, platform-specific error number otherwise.
+ */
+extern int lf_mutex_init(lf_mutex_t* mutex);
+
+/**
+ * Lock a mutex.
+ * 
+ * @return 0 on success, platform-specific error number otherwise.
+ */
+extern int lf_mutex_lock(lf_mutex_t* mutex);
+
+/** 
+ * Unlock a mutex.
+ * 
+ * @return 0 on success, platform-specific error number otherwise.
+ */
+extern int lf_mutex_unlock(lf_mutex_t* mutex);
+
 
 /** 
  * Initialize a conditional variable.
@@ -147,72 +209,7 @@ extern int lf_cond_wait(lf_cond_t* cond, lf_mutex_t* mutex);
  *  number otherwise.
  */
 extern int lf_cond_timedwait(lf_cond_t* cond, lf_mutex_t* mutex, instant_t absolute_time_ns);
-/**
- * Initialize a mutex.
- * 
- * @return 0 on success, platform-specific error number otherwise.
- */
-extern int lf_mutex_init(lf_mutex_t* mutex);
 
-/**
- * Lock a mutex.
- * 
- * @return 0 on success, platform-specific error number otherwise.
- */
-extern int lf_mutex_lock(lf_mutex_t* mutex);
-
-/** 
- * Unlock a mutex.
- * 
- * @return 0 on success, platform-specific error number otherwise.
- */
-extern int lf_mutex_unlock(lf_mutex_t* mutex);
-/*
- * Atomically increment the variable that ptr points to by the given value, and return the original value of the variable.
- * @param ptr A pointer to a variable. The value of this variable will be replaced with the result of the operation.
- * @param value The value to be added to the variable pointed to by the ptr parameter.
- * @return The original value of the variable that ptr points to (i.e., from before the application of this operation).
- */
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-// Assume that an integer is 32 bits.
-#define lf_atomic_fetch_add(ptr, value) InterlockedExchangeAdd(ptr, value)
-#elif defined(__GNUC__) || defined(__clang__)
-#define lf_atomic_fetch_add(ptr, value) __sync_fetch_and_add(ptr, value)
-#else
-#error "Compiler not supported"
-#endif
-
-/*
- * Atomically increment the variable that ptr points to by the given value, and return the new value of the variable.
- * @param ptr A pointer to a variable. The value of this variable will be replaced with the result of the operation.
- * @param value The value to be added to the variable pointed to by the ptr parameter.
- * @return The new value of the variable that ptr points to (i.e., from before the application of this operation).
- */
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-// Assume that an integer is 32 bits.
-#define lf_atomic_add_fetch(ptr, value) InterlockedAdd(ptr, value)
-#elif defined(__GNUC__) || defined(__clang__)
-#define lf_atomic_add_fetch(ptr, value) __sync_add_and_fetch(ptr, value)
-#else
-#error "Compiler not supported"
-#endif
-
-/*
- * Atomically compare the variable that ptr points to against oldval. If the
- * current value is oldval, then write newval into *ptr.
- * @param ptr A pointer to a variable.
- * @param oldval The value to compare against.
- * @param newval The value to assign to *ptr if comparison is successful.
- * @return The true if comparison was successful. False otherwise.
- */
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-// Assume that an integer is 32 bits.
-#define lf_bool_compare_and_swap(ptr, oldval, newval) (InterlockedCompareExchange(ptr, newval, oldval) == oldval)
-#elif defined(__GNUC__) || defined(__clang__)
-#define lf_bool_compare_and_swap(ptr, oldval, newval) __sync_bool_compare_and_swap(ptr, oldval, newval)
-#else
-#error "Compiler not supported"
-#endif
 
 #endif
 
@@ -251,11 +248,16 @@ extern int lf_sleep_until(instant_t wakeup_time);
  * Macros for marking function as deprecated
  */
 #ifdef __GNUC__
-#define DEPRECATED(X) X __attribute__((deprecated))
+    #define DEPRECATED(X) X __attribute__((deprecated))
 #elif defined(_MSC_VER)
-#define DEPRECATED(X) __declspec(deprecated) X
+    #define DEPRECATED(X) __declspec(deprecated) X
 #else
-#define DEPRECATED(X) X
+    #define DEPRECATED(X) X
 #endif
+
+/**
+ * @deprecated version of "lf_seep"
+ */
+DEPRECATED(extern int lf_nanosleep(interval_t sleep_duration));
 
 #endif // PLATFORM_H

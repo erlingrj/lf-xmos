@@ -348,17 +348,18 @@ int lf_reactor_c_main(int argc, const char* argv[]) {
             && process_args(argc, argv)) {
         LF_PRINT_DEBUG("Processed command line arguments.");
         LF_PRINT_DEBUG("Registering the termination function.");
-  //      if (atexit(termination) != 0) {
-   //         lf_print_warning("Failed to register termination function!");
-    //    }
+        #ifndef LF_TARGET_EMBEDDED
+        if (atexit(termination) != 0) {
+            lf_print_warning("Failed to register termination function!");
+        }
         // The above handles only "normal" termination (via a call to exit).
         // As a consequence, we need to also trap ctrl-C, which issues a SIGINT,
         // and cause it to call exit.
         // We wrap this statement since certain Arduino flavors don't support signals.
-        #ifndef ARDUINO
-      //  signal(SIGINT, exit);
+        //  ^ Does any "flavors" of Arduino support signals? I dont think so. It is an OS concept
+        //  I dont think any embedded targets should support aborting execution through a signal
+        signal(SIGINT, exit);
         #endif
-        
         LF_PRINT_DEBUG("Initializing.");
         initialize(); // Sets start_time.
 #ifdef MODAL_REACTORS
