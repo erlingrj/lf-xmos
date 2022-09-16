@@ -4,9 +4,11 @@ target C {
 }
 
 reactor R1(id:int(0)) {
-    input in:void
+    input in:int
     reaction(in) {=
-        printf("Hello from t%u\n", self->id);
+        instant_t now_phy = lf_time_physical();
+        instant_t now_log = lf_time_logical();
+        printf("log=%lli phy=%lli Hello world\n", now_log, now_phy);
     =}
 }
 
@@ -16,7 +18,7 @@ main reactor {
     r2 = new R1(id=2)
 
     reaction(t) -> r1.in, r2.in {=
-        lf_set(r1.in, void);
-        lf_set(r2.in, void);
+        lf_set(r1.in, 0);
+        lf_set(r2.in, 0);
     =}
 }

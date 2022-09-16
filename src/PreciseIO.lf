@@ -1,0 +1,30 @@
+target C {
+    build: "../scripts/build_xmos_unix.sh",
+    workers: 2
+}
+
+preamble {=
+    #include <xcore/port.h>
+=}
+
+reactor Precise {
+    
+    state s_port:port_t(0)
+    state s_port_val:int(0)
+    timer t(1 msec, 1 msec)
+
+    reaction(startup) {=
+        self->s_port  = XS1_PORT_4C;
+        port_enable(self->s_port);
+    =}
+
+    reaction(t) {=
+        self->s_port_val = ~self->s_port_val;
+        port_out(self->s_port, self->s_port_val);
+        printf("Toggled pin\n");
+    =}
+}
+
+main reactor {
+    io = new Precise()
+}
